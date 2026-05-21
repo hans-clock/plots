@@ -1,0 +1,118 @@
+ import csv
+import io
+
+# ── Mock data (replace with: pd.read_csv("your_sharepoint_file.csv")) ──────────
+MOCK_CSV = """variable,original_value,override_value,reason,submitted_by
+inflation_rate,2.1,2.8,Updated based on Q2 ECB forecast,Anna K.
+gdp_growth,1.4,0.9,Revised down after weak PMI data,Tom B.
+unemployment_rate,4.2,4.2,No change — kept for completeness,Anna K.
+house_price_index,3.1,4.5,Regional data suggests faster growth,Sarah M.
+consumer_confidence,98.0,91.0,Post-election sentiment adjustment,Tom B.
+"""
+
+def load_overrides():
+    reader = csv.DictReader(io.StringIO(MOCK_CSV.strip()))
+    return list(reader)
+
+def print_separator():
+    print("\n" + "─" * 60)
+
+def print_header():
+    print("\n" + "=" * 60)
+    print("        MODEL OVERRIDE REVIEW")
+    print("=" * 60)
+    print("  Review each override before running the model.")
+    print("  Rejected overrides will NOT be applied.\n")
+
+def review_overrides(overrides):
+    decisions = {}
+
+    for i, ov in enumerate(overrides, start=1):
+        print_separator()
+        print(f"\n  Override {i} of {len(overrides)}\n")
+        print(f"  Variable   : {ov['variable']}")
+        print(f"  Original   : {ov['original_value']}")
+        print(f"  Override   : {ov['override_value']}")
+        print(f"  Reason     : {ov['reason']}")
+        print(f"  Submitted  : {ov['submitted_by']}")
+
+        while True:
+            answer = input("\n  Accept this override? [y/n]: ").strip().lower()
+            if answer in ("y", "n"):
+                decisions[ov["variable"]] = answer == "y"
+                status = "✓ Accepted" if answer == "y" else "✗ Rejected"
+                print(f"  → {status}")
+                break
+            print("  Please enter y or n.")
+
+    return decisions
+
+def print_summary(overrides, decisions):
+    print_separator()
+    print("\n  SUMMARY\n")
+    accepted = [ov for ov in overrides if decisions.get(ov["variable"])]
+    rejected = [ov for ov in overrides if not decisions.get(ov["variable"])]
+
+    if accepted:
+        print("  Accepted overrides:")
+        for ov in accepted:
+            print(f"    ✓  {ov['variable']}: {ov['original_value']}  →  {ov['override_value']}")
+    if rejected:
+        print("\n  Rejected overrides (model will use original values):")
+        for ov in rejected:
+            print(f"    ✗  {ov['variable']}: stays at {ov['original_value']}")
+
+def final_confirmation(overrides, decisions):
+    while True:
+        print_separator()
+        print("\n  Final check:")
+        print("    y  — Confirm and run the model")
+        print("    n  — Cancel and exit")
+        print("    r  — Restart override review\n")
+
+        answer = input("  Your choice [y/n/r]: ").strip().lower()
+
+        if answer == "y":
+            return "confirm"
+        elif answer == "n":
+            return "cancel"
+        elif answer == "r":
+            return "restart"
+        else:
+            print("  Please enter y, n, or r.")
+
+def run_model(overrides, decisions):
+    print_separator()
+    print("\n  ✓ Running model with the following values:\n")
+    for ov in overrides:
+        if decisions.get(ov["variable"]):
+            print(f"    {ov['variable']}: {ov['override_value']}  (overridden)")
+        else:
+            print(f"    {ov['variable']}: {ov['original_value']}  (original)")
+    print("\n  [ Model would execute here ]\n")
+
+def main():
+    overrides = load_overrides()
+
+    print_header()
+    print(f"  {len(overrides)} overrides found in the CSV.\n")
+
+    while True:
+        decisions = review_overrides(overrides)
+        print_summary(overrides, decisions)
+        outcome = final_confirmation(overrides, decisions)
+
+        if outcome == "confirm":
+            run_model(overrides, decisions)
+            break
+        elif outcome == "cancel":
+            print_separator()
+            print("\n  Cancelled. Model was not run.\n")
+            break
+        elif outcome == "restart":
+            print_separator()
+            print("\n  Restarting review...\n")
+            continue
+
+if __name__ == "__main__":
+    main()
